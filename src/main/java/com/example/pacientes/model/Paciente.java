@@ -7,9 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,26 +23,29 @@ public class Paciente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String nombre;
+    @Column(nullable = false)
     private String apellido;
     private int edad;
-    @Column(name = "fecha_nacimiento", updatable = true, insertable = true)
+    @Column(name = "fecha_nacimiento", nullable = false)
     private LocalDate fechaNacimiento;
 
-    @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "diagnostico_id", referencedColumnName = "id")
-    private diagnostico diagnostico;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "diagnostico_id")
+    private Diagnostico diagnostico;
 
-    @ManyToOne
+    @Column(name = "observacion_medica", length = 2000)
+    private String observacionMedica;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "municipio_id")
     private Municipio municipio;
 
     public Paciente() {
     }
 
-    public Paciente(String nombre, String apellido, int edad, LocalDate fechaNacimiento, Municipio municipio) {
+    public Paciente(String nombre, String apellido, LocalDate fechaNacimiento, Municipio municipio) {
         this.nombre = nombre;
         this.apellido = apellido;
-        this.edad = edad;
         this.fechaNacimiento = fechaNacimiento;
         this.municipio = municipio;
         this.diagnostico = null;
@@ -73,10 +75,6 @@ public class Paciente {
         this.apellido = apellido;
     }
 
-    public int getEdad() {
-        return edad;
-    }
-
     public void setEdad(int edad) {
         this.edad = edad;
     }
@@ -97,20 +95,19 @@ public class Paciente {
         this.municipio = municipio;
     }
 
-    public void setDiagnostico(diagnostico diagnostico) {
+    public void setDiagnostico(Diagnostico diagnostico) {
         this.diagnostico = diagnostico;
     }
 
-    public diagnostico getDiagnostico() {
+    public Diagnostico getDiagnostico() {
         return diagnostico;
     }
 
-    public void mostrarHistorial() {
-        System.out.println("Paciente: " + nombre);
-        if (diagnostico != null) {
-            System.out.println("Diagnóstico: " + diagnostico);
-        } else {
-            System.out.println("Diagnóstico: Ninguno asignado todavía.");
-        }
+    public String getObservacionMedica() {
+        return observacionMedica;
+    }
+
+    public void setObservacionMedica(String observacionMedica) {
+        this.observacionMedica = observacionMedica;
     }
 }

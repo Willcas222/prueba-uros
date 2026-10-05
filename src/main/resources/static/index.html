@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Administración de pacientes y diagnósticos médicos">
+    <title>Gestión clínica Uros</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <div>
+            <p class="eyebrow">SISTEMA DE INFORMACIÓN</p>
+            <h1>Gestión clínica</h1>
+        </div>
+        <span class="header-mark" aria-hidden="true">U</span>
+    </header>
+
+    <main>
+        <div id="mensaje" class="message" role="status" aria-live="polite" hidden></div>
+
+        <section class="card" aria-labelledby="paciente-titulo">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">REGISTRO</p>
+                    <h2 id="paciente-titulo">Datos del paciente</h2>
+                </div>
+                <span id="modo-paciente" class="badge">Nuevo paciente</span>
+            </div>
+            <form id="form-paciente" class="form-grid">
+                <input id="paciente-id" type="hidden">
+                <label>Nombre
+                    <input id="nombre" name="nombre" maxlength="100" autocomplete="given-name" required>
+                </label>
+                <label>Apellido
+                    <input id="apellido" name="apellido" maxlength="100" autocomplete="family-name" required>
+                </label>
+                <label>Fecha de nacimiento
+                    <input id="fechaNacimiento" name="fechaNacimiento" type="date" required>
+                </label>
+                <label>Departamento
+                    <select id="departamento" required>
+                        <option value="">Seleccione departamento</option>
+                    </select>
+                </label>
+                <label>Municipio
+                    <select id="municipioId" required disabled>
+                        <option value="">Seleccione municipio</option>
+                    </select>
+                </label>
+                <div class="form-actions full-width">
+                    <button id="guardar-paciente" type="submit">Guardar paciente</button>
+                    <button id="cancelar-edicion" class="secondary" type="button" hidden>Cancelar edición</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="card" aria-labelledby="asignacion-titulo">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">ATENCIÓN</p>
+                    <h2 id="asignacion-titulo">Asignar diagnóstico</h2>
+                </div>
+            </div>
+            <form id="form-diagnostico" class="form-grid">
+                <label>Paciente
+                    <select id="pacienteDiagnostico" required>
+                        <option value="">Seleccione paciente</option>
+                    </select>
+                </label>
+                <label>Diagnóstico
+                    <select id="diagnosticoId" required>
+                        <option value="">Seleccione diagnóstico</option>
+                    </select>
+                </label>
+                <label class="full-width">Observación médica
+                    <textarea id="observacion" rows="3" maxlength="2000" required></textarea>
+                </label>
+                <div class="form-actions full-width">
+                    <button type="submit">Asignar diagnóstico</button>
+                </div>
+            </form>
+        </section>
+
+        <details class="card setup-card">
+            <summary>Configurar catálogos (departamentos, municipios y diagnósticos)</summary>
+            <div class="catalog-grid">
+                <form id="form-departamento">
+                    <h3>Agregar departamento</h3>
+                    <label>Nombre
+                        <input id="nuevo-departamento" maxlength="100" required>
+                    </label>
+                    <button type="submit">Agregar departamento</button>
+                </form>
+                <form id="form-municipio">
+                    <h3>Agregar municipio</h3>
+                    <label>Nombre
+                        <input id="nuevo-municipio" maxlength="100" required>
+                    </label>
+                    <label>Departamento
+                        <select id="departamentoNuevoMunicipio" required>
+                            <option value="">Seleccione departamento</option>
+                        </select>
+                    </label>
+                    <button type="submit">Agregar municipio</button>
+                </form>
+                <form id="form-nuevo-diagnostico">
+                    <h3>Agregar diagnóstico al catálogo</h3>
+                    <label>Código interno
+                        <input id="codigo-diagnostico" maxlength="30" placeholder="N189" required>
+                    </label>
+                    <label>Nombre
+                        <input id="nombre-diagnostico" maxlength="150" required>
+                    </label>
+                    <label>Descripción
+                        <input id="descripcion-diagnostico" maxlength="500">
+                    </label>
+                    <button type="submit">Agregar diagnóstico</button>
+                </form>
+            </div>
+        </details>
+
+        <section class="card" aria-labelledby="diagnosticados-titulo">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">SEGUIMIENTO</p>
+                    <h2 id="diagnosticados-titulo">Pacientes diagnosticados</h2>
+                </div>
+                <button id="recargar" class="secondary" type="button">Actualizar lista</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Diagnóstico</th>
+                            <th>Observación médica</th>
+                            <th>Paciente</th>
+                            <th>Municipio</th>
+                            <th>Departamento</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-diagnosticados">
+                        <tr><td colspan="6" class="empty">Cargando información...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card" aria-labelledby="todos-titulo">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">ADMINISTRACIÓN</p>
+                    <h2 id="todos-titulo">Pacientes registrados</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Fecha de nacimiento</th>
+                            <th>Municipio</th>
+                            <th>Departamento</th>
+                            <th>Diagnóstico</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-pacientes">
+                        <tr><td colspan="6" class="empty">Cargando información...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <footer>Gestión clínica · API REST con persistencia relacional</footer>
+</body>
+</html>

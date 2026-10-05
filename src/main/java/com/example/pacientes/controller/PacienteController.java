@@ -5,79 +5,63 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.pacientes.model.Paciente;
+import com.example.pacientes.dto.AsignacionDiagnosticoRequest;
+import com.example.pacientes.dto.PacienteRequest;
+import com.example.pacientes.dto.PacienteResponse;
 import com.example.pacientes.service.PacienteService;
-
-
 
 @RestController
 @RequestMapping("/pacientes")
 public class PacienteController {
-
     private final PacienteService pacienteService;
 
     public PacienteController(PacienteService pacienteService) {
         this.pacienteService = pacienteService;
     }
 
-
     @PostMapping
-    public ResponseEntity<String> crearPaciente(@RequestBody Paciente paciente) {
-        Paciente pacienteCreado = pacienteService.savePaciente(paciente);
-        return ResponseEntity.status(HttpStatus.CREATED).body(pacienteCreado.getNombre() + " " + pacienteCreado.getApellido() + " creado con éxito");
+    public ResponseEntity<PacienteResponse> crear(@RequestBody PacienteRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(pacienteService.crear(request));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Paciente> obtenerPaciente(@PathVariable Long id) {
-        Paciente paciente = pacienteService.getPacienteById(id);
-        return ResponseEntity.ok(paciente);
+    public PacienteResponse obtener(@PathVariable Long id) {
+        return pacienteService.obtener(id);
     }
 
-
     @GetMapping
-    public ResponseEntity<List<Paciente>> getAllPacientes() {
-        return ResponseEntity.ok(pacienteService.getAllPacientes());
+    public List<PacienteResponse> listar() {
+        return pacienteService.listar();
+    }
+
+    @GetMapping("/diagnosticados")
+    public List<PacienteResponse> listarDiagnosticados() {
+        return pacienteService.listarDiagnosticados();
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> actualizarPaciente(@PathVariable Long id, @RequestBody Paciente paciente) {
-        Paciente pacienteActualizado = pacienteService.updatePaciente(id, paciente);
-        return ResponseEntity.ok(pacienteActualizado.getNombre() + " " + pacienteActualizado.getApellido() + " actualizado con éxito");
+    public PacienteResponse actualizar(@PathVariable Long id, @RequestBody PacienteRequest request) {
+        return pacienteService.actualizar(id, request);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminarPaciente(@PathVariable Long id) {
-        return pacienteService.deletePaciente(id)
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        pacienteService.eliminar(id);
+        return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/diagnosticar")
-    public ResponseEntity<String> diagnosticar(
+    @PostMapping("/{id}/diagnostico")
+    public PacienteResponse asignarDiagnostico(
             @PathVariable Long id,
-            @RequestParam String nombre,
-            @RequestParam(required = false) String descripcion) {
-
-        Paciente paciente = pacienteService.otorgarDiagnostico(id, nombre, descripcion);
-        return ResponseEntity.ok("Diagnóstico " + paciente.getDiagnostico().getCodigo_diagnostico() + " procesado correctamente.");
+            @RequestBody AsignacionDiagnosticoRequest request) {
+        return pacienteService.asignarDiagnostico(id, request);
     }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> manejarErrores(IllegalArgumentException ex) {
-        HttpStatus status = ex.getMessage() != null && ex.getMessage().contains("no encontrado")
-                ? HttpStatus.NOT_FOUND
-                : HttpStatus.BAD_REQUEST;
-        return ResponseEntity.status(status).body(ex.getMessage());
-    }
-
 }

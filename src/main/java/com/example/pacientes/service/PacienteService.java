@@ -2,15 +2,22 @@ package com.example.pacientes.service;
 
 import java.util.List;
 
-import com.example.pacientes.model.Paciente;
+import com.example.pacientes.dto.AsignacionDiagnosticoRequest;
+import com.example.pacientes.dto.PacienteRequest;
+import com.example.pacientes.dto.PacienteResponse;
 
 public interface PacienteService {
-    Paciente savePaciente(Paciente paciente);
-    Paciente updatePaciente(Long id, Paciente paciente);
-    Paciente getPacienteById(Long id);
-    List<Paciente> getAllPacientes();
-    Boolean deletePaciente(Long id);
-    Paciente getPacienteByDiagnosticoId(Long diagnosticoId);
-    Paciente otorgarDiagnostico(Long pacienteId, String nombre, String descripcion);
+    PacienteResponse crear(PacienteRequest request);
 
+    PacienteResponse actualizar(Long id, PacienteRequest request);
+
+    PacienteResponse obtener(Long id);
+
+    List<PacienteResponse> listar();
+
+    List<PacienteResponse> listarDiagnosticados();
+
+    PacienteResponse asignarDiagnostico(Long pacienteId, AsignacionDiagnosticoRequest request);
+
+    void eliminar(Long id);
 }

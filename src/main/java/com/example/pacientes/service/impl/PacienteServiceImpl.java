@@ -1,27 +1,31 @@
 package com.example.pacientes.service.impl;
 
-import com.example.pacientes.model.Municipio;
-import com.example.pacientes.model.Paciente;
-import com.example.pacientes.model.diagnostico;
-import com.example.pacientes.repository.DiagnosticoRepository;
-import com.example.pacientes.repository.MunicipioRepository;
-import com.example.pacientes.repository.Pacienterepository;
-import com.example.pacientes.service.PacienteService;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
+import com.example.pacientes.dto.AsignacionDiagnosticoRequest;
+import com.example.pacientes.dto.PacienteRequest;
+import com.example.pacientes.dto.PacienteResponse;
+import com.example.pacientes.exception.RecursoNoEncontradoException;
+import com.example.pacientes.model.Paciente;
+import com.example.pacientes.repository.DiagnosticoRepository;
+import com.example.pacientes.repository.MunicipioRepository;
+import com.example.pacientes.repository.PacienteRepository;
+import com.example.pacientes.service.PacienteService;
 
 @Service
 public class PacienteServiceImpl implements PacienteService {
-
-    private final Pacienterepository pacienteRepository;
+    private final PacienteRepository pacienteRepository;
     private final MunicipioRepository municipioRepository;
     private final DiagnosticoRepository diagnosticoRepository;
 
-    public PacienteServiceImpl(Pacienterepository pacienteRepository, MunicipioRepository municipioRepository,
+    public PacienteServiceImpl(
+            PacienteRepository pacienteRepository,
+            MunicipioRepository municipioRepository,
             DiagnosticoRepository diagnosticoRepository) {
         this.pacienteRepository = pacienteRepository;
         this.municipioRepository = municipioRepository;
@@ -30,104 +34,109 @@ public class PacienteServiceImpl implements PacienteService {
 
     @Override
     @Transactional
-    public Paciente savePaciente(Paciente paciente) {
-        validatePaciente(paciente);
-        
-        Municipio municipioInput = paciente.getMunicipio();
-        
-        
-        Municipio municipioResuelto = resolverMunicipio(municipioInput);
-        
-        
-        paciente.setMunicipio(municipioResuelto);
-        
-        return pacienteRepository.save(paciente);
+    public PacienteResponse crear(PacienteRequest request) {
+        validarPaciente(request);
+        var municipio = municipioRepository.findById(request.municipioId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Municipio no encontrado"));
+        if (municipio.getDepartamento() == null) {
+            throw new IllegalArgumentException("El municipio debe estar asociado a un departamento");
+        }
+        var paciente = new Paciente(
+                request.nombre().trim(),
+                request.apellido().trim(),
+                request.fechaNacimiento(),
+                municipio);
+        paciente.setEdad(Period.between(request.fechaNacimiento(), LocalDate.now()).getYears());
+        return respuesta(pacienteRepository.save(paciente));
     }
 
     @Override
     @Transactional
-    public Paciente updatePaciente(Long id, Paciente paciente) {
-        validatePaciente(paciente);
-        Paciente updatedPaciente = getPacienteById(id);
-        updatedPaciente.setNombre(paciente.getNombre());
-        updatedPaciente.setApellido(paciente.getApellido());
-        updatedPaciente.setEdad(paciente.getEdad());
-        updatedPaciente.setFechaNacimiento(paciente.getFechaNacimiento());
-        updatedPaciente.setMunicipio(resolverMunicipio(paciente.getMunicipio()));
-        return pacienteRepository.save(updatedPaciente);
+    public PacienteResponse actualizar(Long id, PacienteRequest request) {
+        validarPaciente(request);
+        var paciente = obtenerEntidad(id);
+        var municipio = municipioRepository.findById(request.municipioId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Municipio no encontrado"));
+        if (municipio.getDepartamento() == null) {
+            throw new IllegalArgumentException("El municipio debe estar asociado a un departamento");
+        }
+        paciente.setNombre(request.nombre().trim());
+        paciente.setApellido(request.apellido().trim());
+        paciente.setFechaNacimiento(request.fechaNacimiento());
+        paciente.setEdad(Period.between(request.fechaNacimiento(), LocalDate.now()).getYears());
+        paciente.setMunicipio(municipio);
+        return respuesta(pacienteRepository.save(paciente));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Paciente getPacienteById(Long id) {
-        return pacienteRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado"));
+    public PacienteResponse obtener(Long id) {
+        return respuesta(obtenerEntidad(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PacienteResponse> listar() {
+        return pacienteRepository.findAll().stream().map(PacienteResponse::from).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PacienteResponse> listarDiagnosticados() {
+        return pacienteRepository.findAllByDiagnosticoIsNotNull()
+                .stream().map(PacienteResponse::from).toList();
     }
 
     @Override
     @Transactional
-    public Boolean deletePaciente(Long id) {
-        return pacienteRepository.findById(id).map(paciente -> {
-            pacienteRepository.delete(paciente);
-            return true;
-        }).orElse(false);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Paciente getPacienteByDiagnosticoId(Long diagnosticoId) {
-        return pacienteRepository.findAll().stream()
-                .filter(paciente -> paciente.getDiagnostico() != null && diagnosticoId != null
-                        && diagnosticoId.equals(paciente.getDiagnostico().getId()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Paciente con diagnostico ID " + diagnosticoId + " no encontrado"));
+    public PacienteResponse asignarDiagnostico(Long pacienteId, AsignacionDiagnosticoRequest request) {
+        if (request == null || request.codigoDiagnostico() == null || request.codigoDiagnostico().isBlank()) {
+            throw new IllegalArgumentException("El código del diagnóstico es obligatorio");
+        }
+        if (request.observacion() == null || request.observacion().isBlank()) {
+            throw new IllegalArgumentException("La observación médica es obligatoria");
+        }
+        if (request.observacion().length() > 2000) {
+            throw new IllegalArgumentException("La observación médica no puede superar 2000 caracteres");
+        }
+        var paciente = obtenerEntidad(pacienteId);
+        var diagnostico = diagnosticoRepository.findByCodigoIgnoreCase(request.codigoDiagnostico().trim())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Diagnóstico no encontrado"));
+        paciente.setDiagnostico(diagnostico);
+        paciente.setObservacionMedica(request.observacion().trim());
+        return respuesta(pacienteRepository.save(paciente));
     }
 
     @Override
     @Transactional
-    public Paciente otorgarDiagnostico(Long pacienteId, String nombre, String descripcion) {
-        if (nombre == null || nombre.isBlank()) {
-            throw new IllegalArgumentException("El nombre del diagnóstico no puede estar vacío");
-        }
-        Paciente paciente = getPacienteById(pacienteId);
-        diagnostico nuevoDiagnostico = diagnosticoRepository.save(new diagnostico(nombre, descripcion));
-        nuevoDiagnostico.setCodigo_diagnostico(String.format("N%04d", nuevoDiagnostico.getId()));
-        paciente.setDiagnostico(nuevoDiagnostico);
-        return pacienteRepository.save(paciente);
+    public void eliminar(Long id) {
+        pacienteRepository.delete(obtenerEntidad(id));
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Paciente> getAllPacientes() {
-        return pacienteRepository.findAll();
+    private Paciente obtenerEntidad(Long id) {
+        return pacienteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Paciente no encontrado"));
     }
 
-
-    private void validatePaciente(Paciente paciente) {
-        if (paciente == null) {
-            throw new IllegalArgumentException("El paciente no puede ser nulo");
+    private void validarPaciente(PacienteRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Los datos del paciente son obligatorios");
         }
-        if (paciente.getNombre() == null || paciente.getNombre().isEmpty()) {
-            throw new IllegalArgumentException("El nombre del paciente no puede estar vacío");
+        if (request.nombre() == null || request.nombre().isBlank()) {
+            throw new IllegalArgumentException("El nombre del paciente es obligatorio");
         }
-        if (paciente.getApellido() == null || paciente.getApellido().isEmpty()) {
-            throw new IllegalArgumentException("El apellido del paciente no puede estar vacío");
+        if (request.apellido() == null || request.apellido().isBlank()) {
+            throw new IllegalArgumentException("El apellido del paciente es obligatorio");
         }
-        if (paciente.getEdad() < 0) {
-            throw new IllegalArgumentException("La edad del paciente no puede ser negativa");
+        if (request.fechaNacimiento() == null || request.fechaNacimiento().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha de nacimiento es obligatoria y no puede ser futura");
         }
-        if (paciente.getFechaNacimiento() == null) {
-            throw new IllegalArgumentException("La fecha de nacimiento del paciente no puede ser nula");
-        }
-        if (paciente.getMunicipio() == null || paciente.getMunicipio().getNombre() == null
-                || paciente.getMunicipio().getNombre().isBlank()) {
-            throw new IllegalArgumentException("El municipio del paciente no puede estar vacío");
+        if (request.municipioId() == null) {
+            throw new IllegalArgumentException("El municipio del paciente es obligatorio");
         }
     }
 
-    
-    private Municipio resolverMunicipio(Municipio municipio) {
-        String nombre = municipio.getNombre().trim();
-        return municipioRepository.findByNombreIgnoreCase(nombre)
-                .orElseGet(() -> municipioRepository.save(new Municipio(nombre)));
+    private PacienteResponse respuesta(Paciente paciente) {
+        return PacienteResponse.from(paciente);
     }
 }
